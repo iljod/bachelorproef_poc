@@ -1,0 +1,20 @@
+{
+  {% if vm_role == 'student' %}
+  "userns-remap": "{{ docker_remap_user }}",
+  {% endif %}
+  "features": {
+    "buildkit": true
+  },
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "default-ulimits": {
+    "nofile": {
+      "Name": "nofile",
+      "Hard": 64000,
+      "Soft": 32000
+    }
+  }
+}

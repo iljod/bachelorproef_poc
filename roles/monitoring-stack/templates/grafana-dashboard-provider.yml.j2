@@ -1,0 +1,13 @@
+# roles/monitoring-stack/templates/grafana-dashboard-provider.yml.j2
+# Managed by Ansible — do not edit manually.
+
+apiVersion: 1
+
+providers:
+  - name: lab-dashboards
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

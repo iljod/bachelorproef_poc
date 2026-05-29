@@ -1,0 +1,12 @@
+all:
+  children:
+
+    student_vm:
+      hosts:
+        keanu-student:
+          ansible_host: 10.14.2.81
+
+    monitoring_vm:
+      hosts:
+        keanu-monitoring:
+          ansible_host: 10.14.2.82

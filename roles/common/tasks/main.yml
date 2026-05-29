@@ -1,0 +1,67 @@
+---
+# ---------------------------------------------------------------
+# common/tasks/main.yml
+# Baseline system configuration applied to every host.
+# ---------------------------------------------------------------
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    upgrade: dist
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - wget
+      - ca-certificates
+      - gnupg
+      - git
+      - lsb-release      # needed for Docker repo setup in docker-setup role
+      - python3-pip
+      - python3-docker   # needed by community.docker Ansible modules
+      - nftables
+      - net-tools
+      - unzip
+      - htop
+    state: present
+
+# br_netfilter is required for Docker bridge networking to work
+# correctly with iptables/nftables. Without it, intra-bridge traffic
+# bypasses the firewall and nftables rules are ineffective.
+- name: Load br_netfilter kernel module
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+
+- name: Persist br_netfilter across reboots
+  ansible.builtin.copy:
+    content: "br_netfilter\n"
+    dest: /etc/modules-load.d/br_netfilter.conf
+    mode: '0644'
+
+- name: Configure sysctl for Docker networking
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop:
+    - { key: "net.bridge.bridge-nf-call-iptables",  value: "1" }
+    - { key: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
+    - { key: "net.ipv4.ip_forward",                 value: "1" }
+
+- name: Enable and start nftables
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+    state: started
+
+- name: Set timezone to Europe/Brussels
+  community.general.timezone:
+    name: "{{ timezone }}"

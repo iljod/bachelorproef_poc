@@ -1,0 +1,21 @@
+# roles/monitoring-stack/templates/grafana-datasources.yml.j2
+# Managed by Ansible — do not edit manually.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    url: http://prometheus:9090
+    access: proxy
+    isDefault: true
+    editable: false
+
+  - name: Loki
+    type: loki
+    uid: loki
+    url: http://loki:3100
+    access: proxy
+    isDefault: false
+    editable: false

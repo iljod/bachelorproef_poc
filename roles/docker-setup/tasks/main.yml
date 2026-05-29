@@ -1,0 +1,160 @@
+---
+# ---------------------------------------------------------------
+# docker-setup/tasks/main.yml
+# ---------------------------------------------------------------
+
+- name: Remove conflicting Docker packages
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-doc
+      - docker-compose
+      - docker-compose-v2
+      - podman-docker
+      - containerd
+      - runc
+    state: absent
+
+- name: Create /etc/apt/keyrings directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download Docker GPG key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+    force: false
+
+- name: Get system architecture
+  ansible.builtin.command: dpkg --print-architecture
+  register: dpkg_arch
+  changed_when: false
+
+- name: Get Ubuntu release codename
+  ansible.builtin.shell: |
+    . /etc/os-release && echo "$VERSION_CODENAME"
+  register: ubuntu_codename
+  changed_when: false
+
+- name: Add Docker apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ dpkg_arch.stdout }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ubuntu_codename.stdout }} stable"
+    state: present
+    filename: docker
+
+- name: Install Docker CE and plugins
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+
+- name: Check cgroups version
+  ansible.builtin.command: mountpoint -q /sys/fs/cgroup
+  register: cgroup_check
+  changed_when: false
+  failed_when: false
+
+- name: Check if cgroups v2 is active
+  ansible.builtin.command: grep -c "^cgroup2" /proc/mounts
+  register: cgroup_fs
+  changed_when: false
+  failed_when: false
+
+- name: Enable cgroups v2 in GRUB
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX='
+    line: 'GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy=1 cgroup_no_v1=all"'
+    backup: true
+  when: cgroup_fs.stdout == "0"
+  register: grub_changed
+
+- name: Verify cgroups v2 is active
+  ansible.builtin.command: grep "^cgroup2" /proc/mounts
+  register: cgroup_fs_post
+  changed_when: false
+  failed_when: cgroup_fs_post.rc != 0
+
+- name: Update GRUB
+  ansible.builtin.command: update-grub
+  when: grub_changed.changed
+
+- name: Reboot to apply cgroups v2
+  ansible.builtin.reboot:
+    reboot_timeout: 120
+    msg: "Rebooting to enable cgroups v2"
+  when: grub_changed.changed
+
+
+- name: Create dockremap system user
+  ansible.builtin.user:
+    name: "{{ docker_remap_user }}"
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+  when: vm_role == 'student'
+
+- name: Add subuid entry for dockremap
+  ansible.builtin.lineinfile:
+    path: /etc/subuid
+    line: "{{ docker_remap_user }}:{{ docker_remap_uid_start }}:{{ docker_remap_uid_count }}"
+    create: true
+    mode: '0644'
+  when: vm_role == 'student'
+
+- name: Add subgid entry for dockremap
+  ansible.builtin.lineinfile:
+    path: /etc/subgid
+    line: "{{ docker_remap_user }}:{{ docker_remap_uid_start }}:{{ docker_remap_uid_count }}"
+    create: true
+    mode: '0644'
+  when: vm_role == 'student'
+
+- name: Create /etc/docker directory
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: '0755'
+
+- name: Write Docker daemon.json
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    mode: '0644'
+  notify: restart docker
+
+- name: Enable and start Docker
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Flush handlers to apply daemon config before network creation
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify Docker is operational
+  ansible.builtin.command: docker info
+  register: docker_info_out
+  changed_when: false
+  failed_when: docker_info_out.rc != 0
+
+- name: Create Docker networks
+  community.docker.docker_network:
+    name: "{{ item.name }}"
+    state: present
+    driver: bridge
+    driver_options:
+      com.docker.network.bridge.name: "{{ item.bridge_name }}"
+    ipam_config:
+      - subnet: "{{ item.subnet }}"
+        gateway: "{{ item.gateway }}"
+  loop: "{{ docker_networks }}"
+  when: vm_role == 'student'

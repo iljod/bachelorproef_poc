@@ -1,0 +1,5 @@
+---
+# Triggered when the template changes. Reloads only our file,
+# not the full nftables ruleset, so Docker's tables stay intact.
+- name: apply nftables rules
+  ansible.builtin.command: nft -f /etc/nftables-lab-isolation.conf

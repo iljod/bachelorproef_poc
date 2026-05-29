@@ -1,0 +1,47 @@
+---
+
+vm_role: student
+
+# --- Docker networks (student VM) ---
+# Subnets are fixed so that guacd gets a predictable IP
+# that the nftables rules can reference. Without fixed subnets
+# the bridge gets a random subnet on every Docker daemon restart.
+docker_networks:
+  - name: lab-platform
+    bridge_name: lab-platform
+    subnet: "172.20.0.0/24"
+    gateway: "172.20.0.1"
+  - name: lab-students
+    bridge_name: lab-students
+    subnet: "172.21.0.0/24"
+    gateway: "172.21.0.1"
+
+# guacd is connected to both networks. Its static IP on lab-students
+# is the only address nftables allows to initiate SSH to student containers.
+guacd_students_ip: "172.21.0.2"
+
+# --- Student container resource limits (cgroups v2) ---
+student_cpu_quota: 50000      # 0.5 vCPU (quota/period)
+student_cpu_period: 100000
+student_memory_limit: "512m"
+student_blkio_weight: 100     # low I/O priority (default is 500)
+
+# --- Session TTLs (seconds) ---
+class_ttl_seconds: 7200       # 2 hours  — used during lab sessions
+homework_ttl_seconds: 604800  # 7 days   — used from home, persistent volume
+
+# --- Guacamole ---
+guacamole_version: "1.5.5"
+guac_auth_json_version: "1.5.5"
+
+# --- Stack deployment path ---
+stack_dir: /opt/lab-platform
+
+# --- Public-facing address ---
+public_host: "10.14.2.81"
+public_url: "https://{{ public_host }}"
+monitoring_vm_ip: "10.14.2.82"
+
+# --- Secrets (never store plaintext here — use vault.yml) ---
+# vault_postgres_password: <set in vault>
+# vault_json_secret_key:   <32-byte hex — generate: openssl rand -hex 16>

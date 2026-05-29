@@ -1,0 +1,181 @@
+# ---------------------------------------------------------------
+# guacamole-stack/tasks/main.yml
+# Deploys the Guacamole + API + Nginx platform stack
+# on the student VM.
+# ---------------------------------------------------------------
+
+# ── Directory structure ─────────────────────────────────────────
+
+- name: Create stack directory structure
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+    owner: "{{ ansible_user }}"
+  loop:
+    - { path: "{{ stack_dir }}",             mode: '0750' }
+    - { path: "{{ stack_dir }}/guacamole",   mode: '0750' }
+    - { path: "{{ stack_dir }}/api",         mode: '0750' }
+    - { path: "{{ stack_dir }}/certs",       mode: '0755' }
+
+# ── TLS certificate ─────────────────────────────────────────────
+
+
+- name: Generate TLS private key
+  community.crypto.openssl_privatekey:
+    path: "{{ stack_dir }}/certs/key.pem"
+    size: 2048
+    mode: '0644'
+    owner: "{{ ansible_user }}"
+
+- name: Generate self-signed TLS certificate
+  community.crypto.x509_certificate:
+    path: "{{ stack_dir }}/certs/cert.pem"
+    privatekey_path: "{{ stack_dir }}/certs/key.pem"
+    provider: selfsigned
+    selfsigned_not_after: "+3650d"
+    mode: '0644'
+    owner: "{{ ansible_user }}"
+  notify: restart guacamole stack
+
+- name: Set cert permissions
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: '0640'
+    owner: "{{ ansible_user }}"
+  loop:
+    - "{{ stack_dir }}/certs/cert.pem"
+    - "{{ stack_dir }}/certs/key.pem"
+
+
+- name: Force cert permissions to 0644 (userns-remap requires world-readable)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: '0644'
+  loop:
+    - "{{ stack_dir }}/certs/cert.pem"
+    - "{{ stack_dir }}/certs/key.pem"
+
+# ── Static files ────────────────────────────────────────────────
+- name: Copy initdb.sql
+  ansible.builtin.copy:
+    src: initdb.sql
+    dest: "{{ stack_dir }}/initdb.sql"
+    mode: '0644'
+
+- name: Copy Guacamole Dockerfile
+  ansible.builtin.copy:
+    src: guacamole/Dockerfile
+    dest: "{{ stack_dir }}/guacamole/Dockerfile"
+    mode: '0640'
+  register: guac_dockerfile
+
+- name: Copy start-custom.sh
+  ansible.builtin.copy:
+    src: guacamole/start-custom.sh
+    dest: "{{ stack_dir }}/guacamole/start-custom.sh"
+    mode: '0750'
+  register: guac_startsh
+
+- name: Copy guacamole-auth-json jar
+  ansible.builtin.copy:
+    src: guacamole/guacamole-auth-json.jar
+    dest: "{{ stack_dir }}/guacamole/guacamole-auth-json.jar"
+    mode: '0640'
+  register: guac_jar
+
+- name: Copy API Dockerfile
+  ansible.builtin.copy:
+    src: api/Dockerfile
+    dest: "{{ stack_dir }}/api/Dockerfile"
+    mode: '0640'
+  register: api_dockerfile
+
+- name: Copy API main.py
+  ansible.builtin.copy:
+    src: api/main.py
+    dest: "{{ stack_dir }}/api/main.py"
+    mode: '0640'
+  register: api_main
+
+- name: Copy API requirements.txt
+  ansible.builtin.copy:
+    src: api/requirements.txt
+    dest: "{{ stack_dir }}/api/requirements.txt"
+    mode: '0640'
+  register: api_requirements
+
+# ── Templates ───────────────────────────────────────────────────
+
+- name: Template docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ stack_dir }}/docker-compose.yml"
+    mode: '0644'
+
+- name: Template .env
+  ansible.builtin.template:
+    src: .env.j2
+    dest: "{{ stack_dir }}/.env"
+    mode: '0644'
+
+
+- name: Template nginx.conf
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ stack_dir }}/nginx.conf"
+    mode: '0644'
+
+# ── Build images if sources changed ───────────────────────────
+- name: Build API image
+  community.docker.docker_image:
+    name: lab-platform-api
+    tag: latest
+    source: build
+    build:
+      path: "{{ stack_dir }}/api"
+      pull: false
+    force_source: "{{ api_dockerfile.changed or api_main.changed or api_requirements.changed }}"
+
+- name: Build Guacamole image
+  community.docker.docker_image:
+    name: lab-platform-guacamole
+    tag: "{{ guacamole_version }}"
+    source: build
+    build:
+      path: "{{ stack_dir }}/guacamole"
+      args:
+        GUACAMOLE_VERSION: "{{ guacamole_version }}"
+      pull: false
+    force_source: "{{ guac_dockerfile.changed or guac_startsh.changed or guac_jar.changed }}"
+
+# ── Deploy stack ─────────────────────────────────────────────────
+- name: Deploy Guacamole stack with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_dir }}"
+    state: present
+    pull: missing
+    build: never
+  register: compose_result
+  notify: restart guacamole stack
+
+# ── Verify ───────────────────────────────────────────────────────
+- name: Wait for Guacamole to be reachable
+  ansible.builtin.uri:
+    url: "https://localhost/guacamole/"
+    validate_certs: false
+    status_code: [200, 302]
+  register: guac_check
+  retries: 12
+  delay: 10
+  until: guac_check.status in [200, 302]
+
+- name: Wait for API health endpoint
+  ansible.builtin.uri:
+    url: "https://localhost/api/"
+    validate_certs: false
+    status_code: 200
+  register: api_check
+  retries: 12
+  delay: 10
+  until: api_check.status == 200

@@ -1,0 +1,30 @@
+# roles/monitoring-stack/templates/prometheus.yml.j2
+# Managed by Ansible — do not edit manually.
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+scrape_configs:
+
+  - job_name: cadvisor
+    static_configs:
+      - targets:
+          - "{{ student_vm_ip }}:8081"
+    relabel_configs:
+      - target_label: instance
+        replacement: student-vm
+    metric_relabel_configs:
+      - source_labels: [name]
+        regex: ".+"
+        action: keep
+      - regex: "container_label_com_docker_compose_(config_hash|container_number|depends_on|image|oneoff|project|project_config_files|project_working_dir|replace|version)"
+        action: labeldrop
+
+  - job_name: node-exporter
+    static_configs:
+      - targets:
+          - "{{ student_vm_ip }}:9100"
+    relabel_configs:
+      - target_label: instance
+        replacement: student-vm

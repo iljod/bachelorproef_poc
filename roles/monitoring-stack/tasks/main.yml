@@ -1,0 +1,140 @@
+# ---------------------------------------------------------------
+# monitoring-stack/tasks/main.yml
+# Deploys Prometheus, Loki and Grafana on the monitoring VM.
+# ---------------------------------------------------------------
+
+- name: Create monitoring stack directory structure
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+    owner: "{{ ansible_user }}"
+  loop:
+    - { path: "{{ monitoring_dir }}",             mode: '0750' }
+    - { path: "{{ monitoring_dir }}/prometheus",  mode: '0755' }
+    - { path: "{{ monitoring_dir }}/loki",        mode: '0755' }
+
+- name: Template docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ monitoring_dir }}/docker-compose.yml"
+    mode: '0640'
+  register: monitoring_compose
+
+- name: Template Prometheus config
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ monitoring_dir }}/prometheus/prometheus.yml"
+    mode: '0640'
+  register: prometheus_conf
+
+- name: Template Loki config
+  ansible.builtin.template:
+    src: loki-config.yml.j2
+    dest: "{{ monitoring_dir }}/loki/loki-config.yml"
+    mode: '0640'
+  register: loki_conf
+
+- name: Create Grafana provisioning directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+  loop:
+    - "{{ monitoring_dir }}/grafana/provisioning/datasources"
+    - "{{ monitoring_dir }}/grafana/provisioning/dashboards"
+    - "{{ monitoring_dir }}/grafana/dashboards"
+
+- name: Template Grafana datasources
+  ansible.builtin.template:
+    src: grafana-datasources.yml.j2
+    dest: "{{ monitoring_dir }}/grafana/provisioning/datasources/datasources.yml"
+    mode: '0644'
+  register: grafana_datasources
+
+- name: Template Grafana dashboard provider
+  ansible.builtin.template:
+    src: grafana-dashboard-provider.yml.j2
+    dest: "{{ monitoring_dir }}/grafana/provisioning/dashboards/provider.yml"
+    mode: '0644'
+  register: grafana_provider
+
+
+- name: Ensure config files are world-readable for remapped UID
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: '0644'
+  loop:
+    - "{{ monitoring_dir }}/prometheus/prometheus.yml"
+    - "{{ monitoring_dir }}/loki/loki-config.yml"
+    - "{{ monitoring_dir }}/grafana/provisioning/datasources/datasources.yml"
+    - "{{ monitoring_dir }}/grafana/provisioning/dashboards/provider.yml"
+
+- name: Ensure config directories are world-executable for remapped UID
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: '0755'
+  loop:
+    - "{{ monitoring_dir }}/prometheus"
+    - "{{ monitoring_dir }}/loki"
+
+
+- name: Deploy monitoring stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_dir }}"
+    state: present
+    pull: missing
+  register: monitoring_result
+
+- name: Restart monitoring stack if config changed
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_dir }}"
+    state: present
+    recreate: always
+  when: >
+    monitoring_compose.changed or
+    prometheus_conf.changed or
+    loki_conf.changed or
+    grafana_datasources.changed or
+    grafana_provider.changed or
+    grafana_dashboards.changed
+
+- name: Verify Prometheus is reachable
+  ansible.builtin.uri:
+    url: "http://localhost:9090/-/healthy"
+    status_code: 200
+  register: prometheus_check
+  retries: 6
+  delay: 5
+  until: prometheus_check.status == 200
+
+- name: Verify Loki is reachable
+  ansible.builtin.uri:
+    url: "http://localhost:3100/ready"
+    status_code: 200
+  register: loki_check
+  retries: 6
+  delay: 5
+  until: loki_check.status == 200
+
+- name: Verify Grafana is reachable
+  ansible.builtin.uri:
+    url: "http://localhost:3000/api/health"
+    status_code: 200
+  register: grafana_check
+  retries: 6
+  delay: 5
+  until: grafana_check.status == 200
+
+
+- name: Copy Grafana dashboards
+  ansible.builtin.copy:
+    src: "dashboards/{{ item }}"
+    dest: "{{ monitoring_dir }}/grafana/dashboards/{{ item }}"
+    mode: '0644'
+  loop:
+    - dashboard-node-exporter.json
+    - dashboard-cadvisor.json
+    - dashboard-loki-logs.json
+  register: grafana_dashboards

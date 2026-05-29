@@ -1,0 +1,51 @@
+---
+# ---------------------------------------------------------------
+# nftables-isolatie/tasks/main.yml
+# Enforces requirement R05: container-to-container traffic between
+# student containers is fully blocked.
+#
+# Design: a dedicated nftables table 'lab_isolation' coexists with
+# Docker's own runtime iptables rules. Our file is separate from
+# Docker's tables so Docker daemon restarts never overwrite our rules.
+#
+# Boot order: nftables.service loads before docker.service.
+# Our rules are active before Docker adds its own tables.
+# 'flush table inet lab_isolation' only clears our table — never
+# Docker's DOCKER / DOCKER-USER chains.
+# ---------------------------------------------------------------
+
+- name: Deploy lab isolation nftables rules
+  ansible.builtin.template:
+    src: nftables-lab-isolation.conf.j2
+    dest: /etc/nftables-lab-isolation.conf
+    mode: '0640'
+    validate: 'nft -c -f %s'    # dry-run syntax check before writing
+  notify: apply nftables rules
+
+- name: Include lab isolation rules from main nftables config
+  ansible.builtin.lineinfile:
+    path: /etc/nftables.conf
+    line: 'include "/etc/nftables-lab-isolation.conf"'
+    create: true
+    mode: '0640'
+  # No notify here — the template task above already notifies.
+
+# Apply immediately without waiting for a handler flush.
+# nft -f on our file only — Docker's runtime tables are untouched.
+- name: Apply isolation rules immediately
+  ansible.builtin.command: nft -f /etc/nftables-lab-isolation.conf
+  changed_when: false
+
+# ---------------------------------------------------------------
+# Verification
+# Print the active chain so the output is visible in the Ansible
+# run log — useful as evidence when documenting the PoC.
+# ---------------------------------------------------------------
+- name: List active lab_isolation forward chain
+  ansible.builtin.command: nft list chain inet lab_isolation forward
+  register: nft_chain_output
+  changed_when: false
+
+- name: Show active isolation rules
+  ansible.builtin.debug:
+    msg: "{{ nft_chain_output.stdout_lines }}"

@@ -1,0 +1,99 @@
+# roles/guacamole-stack/templates/docker-compose.yml.j2
+# Managed by Ansible — do not edit manually.
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: guac-postgres
+    environment:
+      POSTGRES_DB:       guacamoledb
+      POSTGRES_USER:     guacamole
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - {{ stack_dir }}/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+    networks:
+      - lab-platform
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guacamole -d guacamoledb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  guacd:
+    image: guacamole/guacd:{{ guacamole_version }}
+    container_name: guacd
+    networks:
+      lab-platform: {}
+      lab-students: {}
+    restart: unless-stopped
+  guacamole:
+    image: lab-platform-guacamole:{{ guacamole_version }}
+    container_name: guacamole
+    environment:
+      GUACD_HOSTNAME:        guacd
+      GUACD_PORT:            "4822"
+      POSTGRESQL_HOSTNAME:   postgres
+      POSTGRESQL_DATABASE:   guacamoledb
+      POSTGRESQL_USER:       guacamole
+      POSTGRESQL_PASSWORD:   ${POSTGRES_PASSWORD}
+      JSON_SECRET_KEY:       ${JSON_SECRET_KEY}
+      GUACAMOLE_VERSION:     "{{ guacamole_version }}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      guacd:
+        condition: service_started
+    networks:
+      - lab-platform
+    restart: unless-stopped
+
+  api:
+    image: lab-platform-api:latest
+    container_name: provisioning-api
+    userns_mode: "host"
+    environment:
+      POSTGRES_DSN:          "postgresql://guacamole:${POSTGRES_PASSWORD}@postgres/guacamoledb"
+      JSON_SECRET_KEY:       ${JSON_SECRET_KEY}
+      PUBLIC_URL:            "https://{{ public_host }}/guacamole"
+      STUDENT_IMAGE:         "student-image:latest"
+      LAB_NETWORK:           "lab-students"
+      CLASS_TTL_SECONDS:     "{{ class_ttl_seconds }}"
+      HOMEWORK_TTL_SECONDS:  "{{ homework_ttl_seconds }}"
+      STUDENT_MEMORY_LIMIT:  "{{ student_memory_limit }}"
+      STUDENT_CPU_QUOTA:     "{{ student_cpu_quota }}"
+      STUDENT_CPU_PERIOD:    "{{ student_cpu_period }}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lab-platform
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - {{ stack_dir }}/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - {{ stack_dir }}/certs:/etc/nginx/certs:ro
+    depends_on:
+      - guacamole
+      - api
+    networks:
+      - lab-platform
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+
+networks:
+  lab-platform:
+    external: true
+  lab-students:
+    external: true

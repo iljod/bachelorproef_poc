@@ -1,0 +1,59 @@
+# ---------------------------------------------------------------
+# monitoring-agents/tasks/main.yml
+# Deploys cAdvisor, node-exporter and Grafana Alloy on the
+# student VM with host networking so Prometheus on the
+# monitoring VM can scrape them directly.
+# ---------------------------------------------------------------
+
+- name: Create agents stack directory
+  ansible.builtin.file:
+    path: "{{ agents_dir }}"
+    state: directory
+    mode: '0750'
+    owner: "{{ ansible_user }}"
+
+- name: Template docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ agents_dir }}/docker-compose.yml"
+    mode: '0640'
+  register: agents_compose
+
+- name: Template Alloy config
+  ansible.builtin.template:
+    src: alloy-config.river.j2
+    dest: "{{ agents_dir }}/alloy-config.river"
+    mode: '0640'
+  register: alloy_conf
+
+- name: Deploy agents stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ agents_dir }}"
+    state: present
+    pull: missing
+  register: agents_result
+
+- name: Restart agents stack if config changed
+  community.docker.docker_compose_v2:
+    project_src: "{{ agents_dir }}"
+    state: present
+    recreate: always
+  when: alloy_conf.changed or agents_compose.changed
+
+- name: Verify cAdvisor is reachable
+  ansible.builtin.uri:
+    url: "http://localhost:8081/metrics"
+    status_code: 200
+  register: cadvisor_check
+  retries: 6
+  delay: 5
+  until: cadvisor_check.status == 200
+
+- name: Verify node-exporter is reachable
+  ansible.builtin.uri:
+    url: "http://localhost:9100/metrics"
+    status_code: 200
+  register: node_check
+  retries: 6
+  delay: 5
+  until: node_check.status == 200
