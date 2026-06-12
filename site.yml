@@ -1,9 +1,4 @@
 ---
-# Full infrastructure deployment for the bachelor thesis PoC.
-# Run: ansible-playbook site.yml
-# Run single VM: ansible-playbook site.yml --limit student_vm
-#                ansible-playbook site.yml --limit monitoring_vm
-
 - name: Configure student VM
   hosts: student_vm
   become: true

@@ -1,10 +1,3 @@
-# ---------------------------------------------------------------
-# monitoring-agents/tasks/main.yml
-# Deploys cAdvisor, node-exporter and Grafana Alloy on the
-# student VM with host networking so Prometheus on the
-# monitoring VM can scrape them directly.
-# ---------------------------------------------------------------
-
 - name: Create agents stack directory
   ansible.builtin.file:
     path: "{{ agents_dir }}"

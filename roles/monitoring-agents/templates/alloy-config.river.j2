@@ -3,12 +3,10 @@ logging {
   format = "logfmt"
 }
 
-// Discover all Docker containers
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
 
-// Relabel discovered targets
 discovery.relabel "containers" {
   targets = discovery.docker.containers.targets
 
@@ -29,14 +27,12 @@ discovery.relabel "containers" {
   }
 }
 
-// Collect logs from all containers and ship to Loki
 loki.source.docker "containers" {
   host       = "unix:///var/run/docker.sock"
   targets    = discovery.relabel.containers.output
   forward_to = [loki.write.loki.receiver]
 }
 
-// Write to Loki on VM2
 loki.write "loki" {
   endpoint {
     url = "http://10.14.2.82:3100/loki/api/v1/push"

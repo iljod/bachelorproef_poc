@@ -2,30 +2,22 @@
 
 vm_role: monitoring
 
-# --- Docker networks (monitoring VM) ---
 docker_networks:
   - name: lab-monitoring
     bridge_name: lab-monitoring
     subnet: "172.22.0.0/24"
     gateway: "172.22.0.1"
 
-# --- Stack deployment path ---
 stack_dir: /opt/lab-monitoring
 
-# --- Prometheus ---
 student_vm_ip: "10.14.2.81"
 prometheus_scrape_interval: "15s"
 prometheus_retention: "90d"
 
-# --- Loki ---
-# Retention set to one academic year per AVG art. 5 lid 1 e
-# (storage limitation principle).
 loki_retention_period: "8760h"
 
-# --- Grafana ---
 grafana_admin_user: admin
-# vault_grafana_admin_password: <set in vault>
-#
+
 monitoring_dir: /opt/lab-monitoring
 grafana_admin_pass: "{{ vault_grafana_admin_pass }}"
 monitoring_vm_ip: "10.14.2.82"

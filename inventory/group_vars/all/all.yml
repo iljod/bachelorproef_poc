@@ -1,16 +1,10 @@
 ---
-# --- Connection ---
 ansible_user: vicuser
 ansible_ssh_private_key_file: ~/.ssh/staging
 ansible_python_interpreter: /usr/bin/python3
 
-# --- System ---
 timezone: Europe/Brussels
 
-# --- Docker: userns-remap ---
-# A dedicated system user is created on each host.
-# Container root (UID 0) maps to UID 165536 on the host,
-# so a container escape yields no host privileges.
 docker_remap_user: dockremap
 docker_remap_uid_start: 165536
 docker_remap_uid_count: 65536

@@ -1,7 +1,3 @@
-#!/usr/sbin/nft -f
-# Lab network isolation — managed by Ansible (nftables-isolatie role)
-# Do NOT edit manually. Changes will be overwritten on next Ansible run.
-
 add table inet lab_isolation
 delete table inet lab_isolation
 add table inet lab_isolation
@@ -9,34 +5,17 @@ add table inet lab_isolation
 table inet lab_isolation {
 
     chain forward {
-        # Hook into the netfilter FORWARD path at default filter priority.
-        # br_netfilter (loaded by the common role) ensures bridge traffic
-        # is visible to netfilter, so these rules apply to inter-container
-        # traffic on the lab-students bridge.
         type filter hook forward priority filter; policy accept;
 
-        # 1. Allow established and related connections.
-        #    This handles return traffic for any already-accepted flow.
         ct state established,related accept
 
-        # 2. Drop invalid connection tracking entries immediately.
         ct state invalid drop
 
-        # 3. Allow guacd to initiate new SSH connections to student containers.
-        #    guacd ({{ guacd_students_ip }}) is the only component that
-        #    legitimately needs inbound access to port 22 on lab-students.
-        #    All Guacamole browser sessions go through guacd as a central
-        #    proxy — student browsers never reach containers directly.
         iifname "lab-students" \
             ip saddr {{ guacd_students_ip }} \
             tcp dport 22 \
             ct state new accept
 
-        # 4. Block all other intra-network traffic on lab-students.
-        #    This prevents student-to-student lateral movement (R05).
-        #    When a student container sends a packet to another student
-        #    container, both the ingress and egress interface are
-        #    'lab-students', so this rule matches and drops it.
         iifname "lab-students" oifname "lab-students" drop
     }
 }

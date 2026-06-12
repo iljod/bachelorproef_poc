@@ -1,8 +1,4 @@
 ---
-# ---------------------------------------------------------------
-# docker-setup/tasks/main.yml
-# ---------------------------------------------------------------
-
 - name: Remove conflicting Docker packages
   ansible.builtin.apt:
     name:

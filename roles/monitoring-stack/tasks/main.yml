@@ -1,8 +1,3 @@
-# ---------------------------------------------------------------
-# monitoring-stack/tasks/main.yml
-# Deploys Prometheus, Loki and Grafana on the monitoring VM.
-# ---------------------------------------------------------------
-
 - name: Create monitoring stack directory structure
   ansible.builtin.file:
     path: "{{ item.path }}"

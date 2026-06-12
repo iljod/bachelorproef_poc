@@ -1,11 +1,4 @@
-# ---------------------------------------------------------------
-# guacamole-stack/tasks/main.yml
-# Deploys the Guacamole + API + Nginx platform stack
-# on the student VM.
-# ---------------------------------------------------------------
-
-# ── Directory structure ─────────────────────────────────────────
-
+---
 - name: Create stack directory structure
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -17,9 +10,6 @@
     - { path: "{{ stack_dir }}/guacamole",   mode: '0750' }
     - { path: "{{ stack_dir }}/api",         mode: '0750' }
     - { path: "{{ stack_dir }}/certs",       mode: '0755' }
-
-# ── TLS certificate ─────────────────────────────────────────────
-
 
 - name: Generate TLS private key
   community.crypto.openssl_privatekey:
@@ -56,7 +46,6 @@
     - "{{ stack_dir }}/certs/cert.pem"
     - "{{ stack_dir }}/certs/key.pem"
 
-# ── Static files ────────────────────────────────────────────────
 - name: Copy initdb.sql
   ansible.builtin.copy:
     src: initdb.sql
@@ -84,28 +73,13 @@
     mode: '0640'
   register: guac_jar
 
-- name: Copy API Dockerfile
+- name: Copy API source
   ansible.builtin.copy:
-    src: api/Dockerfile
-    dest: "{{ stack_dir }}/api/Dockerfile"
+    src: api/
+    dest: "{{ stack_dir }}/api/"
     mode: '0640'
-  register: api_dockerfile
+  register: api_source
 
-- name: Copy API main.py
-  ansible.builtin.copy:
-    src: api/main.py
-    dest: "{{ stack_dir }}/api/main.py"
-    mode: '0640'
-  register: api_main
-
-- name: Copy API requirements.txt
-  ansible.builtin.copy:
-    src: api/requirements.txt
-    dest: "{{ stack_dir }}/api/requirements.txt"
-    mode: '0640'
-  register: api_requirements
-
-# ── Templates ───────────────────────────────────────────────────
 
 - name: Template docker-compose.yml
   ansible.builtin.template:
@@ -126,7 +100,6 @@
     dest: "{{ stack_dir }}/nginx.conf"
     mode: '0644'
 
-# ── Build images if sources changed ───────────────────────────
 - name: Build API image
   community.docker.docker_image:
     name: lab-platform-api
@@ -135,7 +108,7 @@
     build:
       path: "{{ stack_dir }}/api"
       pull: false
-    force_source: "{{ api_dockerfile.changed or api_main.changed or api_requirements.changed }}"
+    force_source: "{{ api_source.changed }}"
 
 - name: Build Guacamole image
   community.docker.docker_image:
@@ -149,7 +122,7 @@
       pull: false
     force_source: "{{ guac_dockerfile.changed or guac_startsh.changed or guac_jar.changed }}"
 
-# ── Deploy stack ─────────────────────────────────────────────────
+
 - name: Deploy Guacamole stack with Docker Compose
   community.docker.docker_compose_v2:
     project_src: "{{ stack_dir }}"
@@ -159,7 +132,7 @@
   register: compose_result
   notify: restart guacamole stack
 
-# ── Verify ───────────────────────────────────────────────────────
+
 - name: Wait for Guacamole to be reachable
   ansible.builtin.uri:
     url: "https://localhost/guacamole/"

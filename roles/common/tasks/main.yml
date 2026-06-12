@@ -1,9 +1,4 @@
 ---
-# ---------------------------------------------------------------
-# common/tasks/main.yml
-# Baseline system configuration applied to every host.
-# ---------------------------------------------------------------
-
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: true
@@ -21,18 +16,15 @@
       - ca-certificates
       - gnupg
       - git
-      - lsb-release      # needed for Docker repo setup in docker-setup role
+      - lsb-release    
       - python3-pip
-      - python3-docker   # needed by community.docker Ansible modules
+      - python3-docker  
       - nftables
       - net-tools
       - unzip
       - htop
     state: present
 
-# br_netfilter is required for Docker bridge networking to work
-# correctly with iptables/nftables. Without it, intra-bridge traffic
-# bypasses the firewall and nftables rules are ineffective.
 - name: Load br_netfilter kernel module
   community.general.modprobe:
     name: br_netfilter

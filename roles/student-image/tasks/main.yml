@@ -1,15 +1,4 @@
 ---
-# ---------------------------------------------------------------
-# student-image/tasks/main.yml
-# Builds the Docker image that every student container runs.
-# The image is built on the student VM itself so the image is
-# available locally without a registry.
-#
-# The Dockerfile is in roles/student-image/files/ and is copied
-# to the VM at build time. To update the image, change the
-# Dockerfile and re-run Ansible — the force_source flag ensures
-# the image is rebuilt when the Dockerfile changes.
-# ---------------------------------------------------------------
 
 - name: Create student image build directory on VM
   ansible.builtin.file:
@@ -24,8 +13,6 @@
     mode: '0644'
   register: dockerfile_copy
 
-# Build only when the Dockerfile was just changed (or on first run).
-# force_source: true in the handler forces a rebuild when notified.
 - name: Build student Docker image
   community.docker.docker_image:
     name: student-image
@@ -33,6 +20,6 @@
     source: build
     build:
       path: /opt/student-image
-      pull: false          # use local ubuntu:22.04 if already cached
+      pull: false      
     state: present
     force_source: "{{ dockerfile_copy.changed }}"
