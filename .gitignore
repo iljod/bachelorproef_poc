@@ -1,7 +1,5 @@
 *.retry
 
-# Roles installed via requirements.yml (re-installable, don't commit)
-roles/*
 !roles/.gitkeep
 
 .vault_pass

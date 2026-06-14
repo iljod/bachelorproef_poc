@@ -1,0 +1,1164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lab Dashboard</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        background: #0f1117;
+        color: #e2e8f0;
+        min-height: 100vh;
+      }
+
+      /* topbar */
+      .topbar {
+        background: #1e2130;
+        border-bottom: 1px solid #2d3148;
+        padding: 0.75rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .topbar h1 {
+        font-size: 1.1rem;
+        color: #fff;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .tabs {
+        display: flex;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .tab {
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        color: #94a3b8;
+        border: 1px solid transparent;
+      }
+      .tab.active {
+        background: #2d3148;
+        color: #fff;
+        border-color: #3d4468;
+      }
+      .tab:hover:not(.active) {
+        background: #252840;
+        color: #cbd5e1;
+      }
+
+      /* main */
+      .main {
+        padding: 1.5rem 2rem;
+      }
+      .toolbar {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+      select,
+      button,
+      input[type='text'] {
+        font-size: 0.875rem;
+        border-radius: 6px;
+        padding: 0.4rem 0.9rem;
+        cursor: pointer;
+        border: 1px solid #2d3148;
+      }
+      select,
+      input[type='text'] {
+        background: #1e2130;
+        color: #e2e8f0;
+      }
+      input[type='text'] {
+        cursor: text;
+      }
+      input[type='text']::placeholder {
+        color: #4b5563;
+      }
+      button {
+        background: #1e2130;
+        color: #e2e8f0;
+      }
+      button.primary {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: #fff;
+        font-weight: 600;
+      }
+      button.danger {
+        background: #ef4444;
+        border-color: #ef4444;
+        color: #fff;
+      }
+      button.warning {
+        background: #f59e0b;
+        border-color: #f59e0b;
+        color: #000;
+        font-weight: 600;
+      }
+      button:hover {
+        opacity: 0.85;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .sep {
+        width: 1px;
+        height: 24px;
+        background: #2d3148;
+        flex-shrink: 0;
+      }
+
+      /* search */
+      .search-row {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        align-items: center;
+      }
+      #searchInput {
+        flex: 0 0 220px;
+        padding: 0.38rem 0.8rem;
+      }
+      .student-count-label {
+        font-size: 0.78rem;
+        color: #64748b;
+      }
+
+      /* student grid */
+      .student-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.6rem;
+        margin-bottom: 1.5rem;
+      }
+      .student-card {
+        background: #1e2130;
+        border: 1px solid #2d3148;
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        transition: border-color 0.15s;
+        user-select: none;
+        position: relative;
+      }
+      .student-card:hover {
+        border-color: #3b82f6;
+      }
+      .student-card.selected {
+        border-color: #3b82f6;
+        background: #1a2540;
+      }
+      .student-card.running {
+        border-color: #22c55e44;
+      }
+      .student-card.selected.running {
+        border-color: #22c55e;
+        background: #142418;
+      }
+      .student-card input[type='checkbox'] {
+        accent-color: #3b82f6;
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+        pointer-events: none;
+      }
+      .student-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #334155;
+        flex-shrink: 0;
+      }
+      .dot.running {
+        background: #22c55e;
+      }
+      .remove-student-btn {
+        position: absolute;
+        top: 4px;
+        right: 5px;
+        background: none;
+        border: none;
+        color: #4b5563;
+        font-size: 0.7rem;
+        padding: 2px 4px;
+        border-radius: 3px;
+        cursor: pointer;
+        opacity: 0;
+        transition:
+          opacity 0.15s,
+          color 0.15s;
+        line-height: 1;
+      }
+      .student-card:hover .remove-student-btn {
+        opacity: 1;
+      }
+      .remove-student-btn:hover {
+        color: #ef4444 !important;
+        background: #2d1b1b;
+        opacity: 1 !important;
+      }
+
+      /* manage panel */
+      .manage-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        font-size: 0.82rem;
+        color: #64748b;
+        margin-bottom: 0.75rem;
+        user-select: none;
+      }
+      .manage-toggle:hover {
+        color: #94a3b8;
+      }
+      .manage-toggle .arrow {
+        display: inline-block;
+        width: 0;
+        height: 0;
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        border-left: 6px solid #64748b;
+        transition: transform 0.2s;
+        flex-shrink: 0;
+      }
+      .manage-toggle.open .arrow {
+        transform: rotate(90deg);
+      }
+      .manage-panel {
+        background: #161926;
+        border: 1px solid #2d3148;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        display: none;
+      }
+      .manage-panel.open {
+        display: block;
+      }
+      .manage-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.25rem;
+      }
+      .manage-section h3 {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #64748b;
+        margin-bottom: 0.6rem;
+      }
+      .manage-section .row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .manage-section input[type='text'] {
+        flex: 1;
+        min-width: 120px;
+      }
+      .csv-drop {
+        border: 1px dashed #334155;
+        border-radius: 6px;
+        padding: 0.75rem;
+        text-align: center;
+        font-size: 0.8rem;
+        color: #64748b;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+      .csv-drop:hover,
+      .csv-drop.dragover {
+        border-color: #3b82f6;
+        background: #1a2540;
+        color: #93c5fd;
+      }
+      .csv-drop input[type='file'] {
+        display: none;
+      }
+      .manage-msg {
+        font-size: 0.78rem;
+        margin-top: 0.5rem;
+        min-height: 1.1em;
+      }
+      .manage-msg.ok {
+        color: #4ade80;
+      }
+      .manage-msg.err {
+        color: #f87171;
+      }
+
+      /* section title */
+      .section-title {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+        margin-bottom: 0.75rem;
+      }
+
+      /* active table */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        text-align: left;
+        font-size: 0.72rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #2d3148;
+      }
+      td {
+        padding: 0.55rem 0.75rem;
+        border-bottom: 1px solid #1a1f30;
+        font-size: 0.85rem;
+        vertical-align: middle;
+      }
+      tr:hover td {
+        background: #252840;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 600;
+      }
+      .badge.class {
+        background: #1d4ed8;
+        color: #bfdbfe;
+      }
+      .badge.homework {
+        background: #7c3aed;
+        color: #ddd6fe;
+      }
+      .copy-btn {
+        background: #334155;
+        border: none;
+        color: #94a3b8;
+        border-radius: 4px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.78rem;
+        cursor: pointer;
+      }
+      .copy-btn:hover {
+        background: #475569;
+        color: #fff;
+      }
+      .copy-btn.copied {
+        background: #166534;
+        color: #86efac;
+      }
+      .act-btn {
+        background: #1e2130;
+        border: 1px solid #2d3148;
+        color: #94a3b8;
+        border-radius: 4px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.78rem;
+        cursor: pointer;
+        margin-left: 0.3rem;
+      }
+      .act-btn:hover {
+        background: #252840;
+        color: #fff;
+      }
+      .act-btn.red {
+        border-color: #ef444440;
+        color: #f87171;
+      }
+      .act-btn.red:hover {
+        background: #7f1d1d;
+        color: #fca5a5;
+      }
+      .empty-class {
+        text-align: center;
+        padding: 2rem;
+        color: #4b5563;
+        font-size: 0.875rem;
+      }
+
+      /* status / toast */
+      #statusbar {
+        font-size: 0.82rem;
+        color: #64748b;
+        margin-bottom: 1rem;
+        min-height: 1.2em;
+      }
+      #errorBox {
+        background: #2d1b1b;
+        border: 1px solid #7f1d1d;
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1rem;
+        font-size: 0.82rem;
+        color: #fca5a5;
+        display: none;
+      }
+      #toast {
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        background: #1e2130;
+        border: 1px solid #2d3148;
+        border-radius: 8px;
+        padding: 0.6rem 1.2rem;
+        font-size: 0.85rem;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: all 0.2s;
+        pointer-events: none;
+        z-index: 999;
+        max-width: 320px;
+      }
+      #toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* modal */
+      .modal-bg {
+        position: fixed;
+        inset: 0;
+        background: #00000088;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal {
+        background: #1e2130;
+        border: 1px solid #3d4468;
+        border-radius: 10px;
+        padding: 1.5rem;
+        min-width: 320px;
+        max-width: 420px;
+        width: 90%;
+      }
+      .modal h2 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+      }
+      .modal label {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        display: block;
+        margin-bottom: 0.25rem;
+        margin-top: 0.75rem;
+      }
+      .modal input[type='text'] {
+        width: 100%;
+      }
+      .modal-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        margin-top: 1.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>Lab Dashboard</h1>
+      <div class="tabs" id="classTabs"></div>
+    </div>
+
+    <div class="main">
+      <div id="statusbar">Loading...</div>
+      <div id="errorBox"></div>
+
+      <!-- manage roster panel -->
+      <div class="manage-toggle" id="manageToggle" onclick="toggleManage()">
+        <span class="arrow"></span> Manage Roster
+      </div>
+      <div class="manage-panel" id="managePanel">
+        <div class="manage-grid">
+          <!-- Import CSV -->
+          <div class="manage-section">
+            <h3>Import via CSV</h3>
+            <div
+              class="csv-drop"
+              id="csvDrop"
+              onclick="document.getElementById('csvFile').click()"
+              ondragover="
+                event.preventDefault();
+                this.classList.add('dragover');
+              "
+              ondragleave="this.classList.remove('dragover')"
+              ondrop="handleCsvDrop(event)"
+            >
+              <input
+                type="file"
+                id="csvFile"
+                accept=".csv"
+                onchange="uploadCsv(this.files[0])"
+              />
+              Click or drag a <b>.csv</b> file here<br />
+              <span style="font-size: 0.72rem; color: #475569"
+                >Format: <code>class_name,student_id</code> (one per row)</span
+              >
+            </div>
+            <div class="manage-msg" id="csvMsg"></div>
+            <div style="margin-top: 0.5rem">
+              <a
+                href="/api/roster/export"
+                style="
+                  font-size: 0.78rem;
+                  color: #64748b;
+                  text-decoration: none;
+                "
+                >Export current roster as CSV</a
+              >
+            </div>
+          </div>
+
+          <!-- Add / Remove Class -->
+          <div class="manage-section">
+            <h3>Add New Class</h3>
+            <div class="row">
+              <input
+                type="text"
+                id="newClassName"
+                placeholder="e.g. Class C"
+                onkeydown="if (event.key === 'Enter') addClassUI();"
+              />
+              <button class="primary" onclick="addClassUI()">Add class</button>
+            </div>
+            <div class="manage-msg" id="classMsg"></div>
+
+            <h3 style="margin-top: 1rem">Remove Current Class</h3>
+            <div class="row">
+              <span
+                style="font-size: 0.82rem; color: #94a3b8"
+                id="removeClassLabel"
+                >-</span
+              >
+              <button
+                class="danger"
+                onclick="removeClassUI()"
+                id="removeClassBtn"
+                style="padding: 0.35rem 0.75rem"
+              >
+                Remove
+              </button>
+            </div>
+            <div class="manage-msg" id="removeClassMsg"></div>
+          </div>
+
+          <!-- Add Student -->
+          <div class="manage-section">
+            <h3>Add Student to <span id="addStudentClassLabel">...</span></h3>
+            <div class="row">
+              <input
+                type="text"
+                id="newStudentId"
+                placeholder="student username"
+                onkeydown="if (event.key === 'Enter') addStudentUI();"
+              />
+              <button class="primary" onclick="addStudentUI()">Add</button>
+            </div>
+            <div class="manage-msg" id="studentMsg"></div>
+            <p style="font-size: 0.75rem; color: #475569; margin-top: 0.4rem">
+              Click the x on any card to remove that student from this class.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- toolbar -->
+      <div class="toolbar">
+        <button onclick="selectAll()">Select all</button>
+        <button onclick="selectNone()">Deselect all</button>
+        <div class="sep"></div>
+        <select id="ttlType">
+          <option value="class">Class (2 h)</option>
+          <option value="homework">Homework (7 d)</option>
+        </select>
+        <button class="primary" onclick="startSelected()">
+          Start selected
+        </button>
+        <div class="sep"></div>
+        <button class="warning" onclick="redeploySelected()">
+          Redeploy selected
+        </button>
+        <button class="danger" onclick="stopSelected()">Stop selected</button>
+        <button class="danger" onclick="stopAll()">Stop all</button>
+      </div>
+
+      <!-- search + count -->
+      <div class="search-row">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Filter students..."
+          oninput="renderGrid()"
+        />
+        <span class="student-count-label" id="selectedCount">0 selected</span>
+      </div>
+
+      <div class="section-title">Students</div>
+      <div class="student-grid" id="studentGrid"></div>
+
+      <div id="activeSection" style="display: none">
+        <div class="section-title" style="margin-top: 0.5rem">
+          Active containers
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Type</th>
+              <th>Time remaining</th>
+              <th>Link</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="activeBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+      let roster = {};
+      let currentClass = null;
+      let sessionLinks = {};
+      let sessionMeta = {};
+      let runningSet = new Set();
+
+      // init
+      async function init() {
+        await loadRoster();
+        await syncStatus();
+        setInterval(syncStatus, 15000);
+      }
+
+      async function loadRoster() {
+        const res = await fetch('/api/roster');
+        roster = await res.json();
+        const classes = Object.keys(roster);
+        if (!currentClass || !roster[currentClass]) {
+          currentClass = classes[0] || null;
+        }
+        renderTabs();
+        renderGrid();
+      }
+
+      // tabs
+      function renderTabs() {
+        const container = document.getElementById('classTabs');
+        container.innerHTML = '';
+        Object.keys(roster).forEach((cls) => {
+          const div = document.createElement('div');
+          div.className = 'tab' + (cls === currentClass ? ' active' : '');
+          div.textContent = cls;
+          div.onclick = () => switchClass(cls);
+          container.appendChild(div);
+        });
+        const lbl = document.getElementById('removeClassLabel');
+        const addLbl = document.getElementById('addStudentClassLabel');
+        if (lbl) lbl.textContent = currentClass || '-';
+        if (addLbl) addLbl.textContent = currentClass || '...';
+      }
+
+      function switchClass(cls) {
+        currentClass = cls;
+        document.getElementById('searchInput').value = '';
+        renderTabs();
+        renderGrid();
+      }
+
+      // manage panel
+      function toggleManage() {
+        document.getElementById('manageToggle').classList.toggle('open');
+        document.getElementById('managePanel').classList.toggle('open');
+      }
+
+      async function addClassUI() {
+        const input = document.getElementById('newClassName');
+        const name = input.value.trim();
+        const msg = document.getElementById('classMsg');
+        if (!name) {
+          setManageMsg(msg, 'Enter a class name.', true);
+          return;
+        }
+        const res = await fetch('/api/roster/class', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ class_name: name }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setManageMsg(msg, data.detail || 'Error', true);
+          return;
+        }
+        input.value = '';
+        setManageMsg(msg, `Class "${name}" created.`, false);
+        await loadRoster();
+        switchClass(name);
+      }
+
+      async function removeClassUI() {
+        if (!currentClass) return;
+        const msg = document.getElementById('removeClassMsg');
+        if (
+          !confirm(
+            `Remove class "${currentClass}" and all its students from the roster?\nRunning containers are not stopped.`,
+          )
+        )
+          return;
+        const res = await fetch(
+          `/api/roster/class/${encodeURIComponent(currentClass)}`,
+          { method: 'DELETE' },
+        );
+        const data = await res.json();
+        if (!res.ok) {
+          setManageMsg(msg, data.detail || 'Error', true);
+          return;
+        }
+        setManageMsg(msg, `Removed "${currentClass}".`, false);
+        currentClass = null;
+        await loadRoster();
+      }
+
+      async function addStudentUI() {
+        if (!currentClass) return;
+        const input = document.getElementById('newStudentId');
+        const sid = input.value.trim();
+        const msg = document.getElementById('studentMsg');
+        if (!sid) {
+          setManageMsg(msg, 'Enter a student username.', true);
+          return;
+        }
+        const res = await fetch(
+          `/api/roster/class/${encodeURIComponent(currentClass)}/student`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ student_id: sid }),
+          },
+        );
+        const data = await res.json();
+        if (!res.ok) {
+          setManageMsg(msg, data.detail || 'Error', true);
+          return;
+        }
+        input.value = '';
+        setManageMsg(msg, `Added "${sid}" to ${currentClass}.`, false);
+        await loadRoster();
+        renderGrid();
+      }
+
+      async function removeStudentUI(cls, studentId, event) {
+        event.stopPropagation();
+        if (
+          !confirm(
+            `Remove "${studentId}" from ${cls}?\nRunning container is not stopped.`,
+          )
+        )
+          return;
+        const res = await fetch(
+          `/api/roster/class/${encodeURIComponent(cls)}/student/${encodeURIComponent(studentId)}`,
+          { method: 'DELETE' },
+        );
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.detail || 'Error removing student');
+          return;
+        }
+        showToast(`Removed "${studentId}" from ${cls}`);
+        await loadRoster();
+        renderGrid();
+      }
+
+      function handleCsvDrop(event) {
+        event.preventDefault();
+        document.getElementById('csvDrop').classList.remove('dragover');
+        const file = event.dataTransfer.files[0];
+        if (file) uploadCsv(file);
+      }
+
+      async function uploadCsv(file) {
+        if (!file) return;
+        const msg = document.getElementById('csvMsg');
+        msg.textContent = 'Uploading...';
+        msg.className = 'manage-msg';
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch('/api/roster/import', {
+          method: 'POST',
+          body: form,
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setManageMsg(msg, data.detail || 'Upload failed', true);
+          return;
+        }
+        const lines = [`Added ${data.total_added} student(s).`];
+        if (data.skipped.length)
+          lines.push(`Skipped ${data.skipped.length} duplicate(s).`);
+        if (data.errors.length)
+          lines.push(
+            `${data.errors.length} row error(s): ${data.errors.slice(0, 3).join('; ')}`,
+          );
+        setManageMsg(msg, lines.join(' '), data.errors.length > 0);
+        document.getElementById('csvFile').value = '';
+        await loadRoster();
+      }
+
+      function setManageMsg(el, text, isErr) {
+        el.textContent = text;
+        el.className = 'manage-msg ' + (isErr ? 'err' : 'ok');
+        setTimeout(() => {
+          el.textContent = '';
+          el.className = 'manage-msg';
+        }, 5000);
+      }
+
+      // sync
+      async function syncStatus() {
+        try {
+          const res = await fetch('/api/session/status');
+          const data = await res.json();
+          runningSet = new Set(
+            Object.keys(data).filter((k) => data[k].status === 'running'),
+          );
+          Object.entries(data).forEach(([id, info]) => {
+            if (info.url) sessionLinks[id] = info.url;
+            if (info.ttl_remaining !== undefined) sessionMeta[id] = info;
+          });
+          setStatus(
+            `Last synced: ${new Date().toLocaleTimeString()} - ${runningSet.size} container(s) running`,
+          );
+          renderGrid();
+        } catch (e) {
+          setStatus('Could not reach API');
+        }
+      }
+
+      // grid
+      function renderGrid() {
+        const grid = document.getElementById('studentGrid');
+        const filter = (
+          document.getElementById('searchInput').value || ''
+        ).toLowerCase();
+        const students = (roster[currentClass] || []).filter(
+          (s) => !filter || s.includes(filter),
+        );
+        const selected = getSelected();
+        grid.innerHTML = '';
+
+        if (!students.length) {
+          const empty = document.createElement('div');
+          empty.className = 'empty-class';
+          empty.textContent = filter
+            ? 'No students match the filter.'
+            : 'This class has no students yet.';
+          grid.appendChild(empty);
+          updateCount();
+          renderActiveTable();
+          return;
+        }
+
+        students.forEach((name) => {
+          const running = runningSet.has(name);
+          const card = document.createElement('div');
+          card.className =
+            'student-card' +
+            (running ? ' running' : '') +
+            (selected.includes(name) ? ' selected' : '');
+          card.dataset.name = name;
+          card.innerHTML = `
+      <input type="checkbox" ${selected.includes(name) ? 'checked' : ''}>
+      <div class="dot ${running ? 'running' : ''}"></div>
+      <span class="student-name" title="${name}">${name}</span>
+      <button class="remove-student-btn" title="Remove from class" onclick="removeStudentUI('${currentClass.replace(/'/g, "\\'")}','${name.replace(/'/g, "\\'")}',event)">x</button>
+    `;
+          card.addEventListener('click', () => {
+            const cb = card.querySelector('input');
+            cb.checked = !cb.checked;
+            card.classList.toggle('selected', cb.checked);
+            updateCount();
+          });
+          grid.appendChild(card);
+        });
+        updateCount();
+        renderActiveTable();
+      }
+
+      function getSelected() {
+        return [...document.querySelectorAll('.student-card')]
+          .filter((c) => c.querySelector('input').checked)
+          .map((c) => c.dataset.name);
+      }
+
+      function updateCount() {
+        const sel = getSelected().length;
+        const total = (roster[currentClass] || []).length;
+        document.getElementById('selectedCount').textContent =
+          `${sel} selected / ${total} total`;
+      }
+
+      function selectAll() {
+        document.querySelectorAll('.student-card').forEach((c) => {
+          c.querySelector('input').checked = true;
+          c.classList.add('selected');
+        });
+        updateCount();
+      }
+
+      function selectNone() {
+        document.querySelectorAll('.student-card').forEach((c) => {
+          c.querySelector('input').checked = false;
+          c.classList.remove('selected');
+        });
+        updateCount();
+      }
+
+      function setStatus(msg) {
+        document.getElementById('statusbar').textContent = msg;
+      }
+
+      function showErrors(errors) {
+        const box = document.getElementById('errorBox');
+        if (!errors.length) {
+          box.style.display = 'none';
+          return;
+        }
+        box.style.display = 'block';
+        box.innerHTML = errors
+          .map((e) => `<b>${e.student_id}</b>: ${e.error}`)
+          .join('<br>');
+      }
+
+      function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2800);
+      }
+
+      function fmtTTL(secs) {
+        if (secs <= 0) return 'expired';
+        if (secs >= 86400)
+          return (
+            Math.floor(secs / 86400) +
+            'd ' +
+            Math.floor((secs % 86400) / 3600) +
+            'h'
+          );
+        return (
+          Math.floor(secs / 3600) + 'h ' + Math.floor((secs % 3600) / 60) + 'm'
+        );
+      }
+
+      // session actions
+      async function startSelected() {
+        const students = getSelected();
+        if (!students.length) return setStatus('No students selected.');
+        const ttl_type = document.getElementById('ttlType').value;
+        setStatus(`Starting ${students.length} container(s)...`);
+        const res = await fetch('/api/session/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ students, ttl_type }),
+        });
+        const data = await res.json();
+        data.started.forEach((s) => {
+          sessionLinks[s.student_id] = s.url;
+          sessionMeta[s.student_id] = {
+            ttl_type: s.ttl_type,
+            ttl_remaining: s.ttl_seconds,
+          };
+          runningSet.add(s.student_id);
+        });
+        showErrors(data.errors);
+        setStatus(
+          `Started ${data.started.length} container(s)${data.errors.length ? `, ${data.errors.length} error(s)` : ''}.`,
+        );
+        renderGrid();
+      }
+
+      async function stopSelected() {
+        const students = getSelected();
+        if (!students.length) return setStatus('No students selected.');
+        setStatus(`Stopping ${students.length} container(s)...`);
+        const res = await fetch('/api/session/stop', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ students }),
+        });
+        const data = await res.json();
+        data.stopped.forEach((s) => {
+          runningSet.delete(s);
+          delete sessionLinks[s];
+          delete sessionMeta[s];
+        });
+        showErrors(data.errors);
+        setStatus(`Stopped ${data.stopped.length} container(s).`);
+        renderGrid();
+      }
+
+      async function stopAll() {
+        const all = [...runningSet];
+        if (!all.length) return setStatus('No running containers.');
+        setStatus(`Stopping all ${all.length} container(s)...`);
+        const res = await fetch('/api/session/stop', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ students: all }),
+        });
+        const data = await res.json();
+        runningSet.clear();
+        sessionLinks = {};
+        sessionMeta = {};
+        showErrors(data.errors);
+        setStatus(`Stopped ${data.stopped.length} container(s).`);
+        renderGrid();
+      }
+
+      async function redeploySelected() {
+        const students = getSelected();
+        if (!students.length) return setStatus('No students selected.');
+        const ttl_type = document.getElementById('ttlType').value;
+        setStatus(`Redeploying ${students.length} container(s)...`);
+        const res = await fetch('/api/session/redeploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ students, ttl_type }),
+        });
+        const data = await res.json();
+        data.redeployed.forEach((s) => {
+          sessionLinks[s.student_id] = s.url;
+          sessionMeta[s.student_id] = {
+            ttl_type: s.ttl_type,
+            ttl_remaining: s.ttl_seconds,
+          };
+          runningSet.add(s.student_id);
+        });
+        showErrors(data.errors);
+        setStatus(`Redeployed ${data.redeployed.length} container(s).`);
+        renderGrid();
+      }
+
+      async function stopOne(name) {
+        setStatus(`Stopping ${name}...`);
+        const res = await fetch('/api/session/stop', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ students: [name] }),
+        });
+        const data = await res.json();
+        if (data.stopped.includes(name)) {
+          runningSet.delete(name);
+          delete sessionLinks[name];
+          delete sessionMeta[name];
+          setStatus(`Stopped ${name}.`);
+        }
+        renderGrid();
+      }
+
+      async function redeployOne(name) {
+        const ttl_type = document.getElementById('ttlType').value;
+        setStatus(`Redeploying ${name}...`);
+        const res = await fetch('/api/session/redeploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ students: [name], ttl_type }),
+        });
+        const data = await res.json();
+        data.redeployed.forEach((s) => {
+          sessionLinks[s.student_id] = s.url;
+          sessionMeta[s.student_id] = {
+            ttl_type: s.ttl_type,
+            ttl_remaining: s.ttl_seconds,
+          };
+          runningSet.add(s.student_id);
+        });
+        showErrors(data.errors);
+        setStatus(`Redeployed ${name}.`);
+        renderGrid();
+      }
+
+      // active table
+      function renderActiveTable() {
+        const tbody = document.getElementById('activeBody');
+        const section = document.getElementById('activeSection');
+        const all = roster[currentClass] || [];
+        const active = all.filter((s) => runningSet.has(s));
+        if (!active.length) {
+          section.style.display = 'none';
+          return;
+        }
+        section.style.display = 'block';
+        tbody.innerHTML = '';
+        active.forEach((name) => {
+          const url = sessionLinks[name] || '';
+          const meta = sessionMeta[name] || {};
+          tbody.innerHTML += `
+      <tr>
+        <td><b>${name}</b></td>
+        <td><span class="badge ${meta.ttl_type || ''}">${meta.ttl_type || '-'}</span></td>
+        <td style="font-variant-numeric:tabular-nums">${meta.ttl_remaining !== undefined ? fmtTTL(meta.ttl_remaining) : '-'}</td>
+        <td>${url ? `<button class="copy-btn" onclick="copyLink('${name}', this)">Copy link</button>` : '-'}</td>
+        <td>
+          <button class="act-btn" onclick="redeployOne('${name}')">Redeploy</button>
+          <button class="act-btn red" onclick="stopOne('${name}')">Stop</button>
+        </td>
+      </tr>`;
+        });
+      }
+
+      function copyLink(name, btn) {
+        const url = sessionLinks[name];
+        if (!url) return;
+        navigator.clipboard.writeText(url).then(() => {
+          btn.textContent = 'Copied!';
+          btn.classList.add('copied');
+          showToast(`Link copied for ${name}`);
+          setTimeout(() => {
+            btn.textContent = 'Copy link';
+            btn.classList.remove('copied');
+          }, 2000);
+        });
+      }
+
+      init();
+    </script>
+  </body>
+</html>
