@@ -1,0 +1,6 @@
+apiVersion: v2
+name: lab-platform
+description: Cloud-native Guacamole remote lab platform (provisioning API, guacd, Guacamole, CloudNativePG)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

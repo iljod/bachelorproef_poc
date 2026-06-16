@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: lab-platform-bootstrap
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  backoffLimit: 5
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lab-platform-bootstrap
+    spec:
+      serviceAccountName: lab-platform-bootstrap
+      restartPolicy: OnFailure
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: guacamole-schema
+          emptyDir: {}
+      initContainers:
+        # Render the Guacamole Postgres schema from the same image version that
+        # gets deployed, so schema and Guacamole never drift apart.
+        - name: render-guacamole-schema
+          image: "{{ .Values.image.guacamole.repository }}:{{ .Values.image.guacamole.tag }}"
+          command: ["sh", "-c"]
+          args:
+            - set -e; /opt/guacamole/bin/initdb.sh --postgresql > /schema/initdb.sql
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: guacamole-schema
+              mountPath: /schema
+      containers:
+        - name: bootstrap
+          image: "{{ .Values.image.bootstrap.repository }}:{{ .Values.image.bootstrap.tag }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: guacamole-schema
+              mountPath: /schema
+              readOnly: true
+          env:
+            - name: PGHOST
+              value: lab-platform-db-pooler
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: lab-platform-db-app
+                  key: dbname
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: lab-platform-db-app
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lab-platform-db-app
+                  key: password

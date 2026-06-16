@@ -1,0 +1,68 @@
+hostname: lab.example.org
+certIssuer: platform-selfsigned
+ingressNamespace: traefik
+
+namespaces:
+  platform: lab-platform
+  students: lab-students
+
+image:
+  api:
+    repository: ghcr.io/keanu-vervaeke/lab-platform-api
+    tag: replace-me-via-application-values
+  bootstrap:
+    repository: ghcr.io/keanu-vervaeke/lab-platform-bootstrap
+    tag: replace-me-via-application-values
+  studentSandbox:
+    repository: ghcr.io/keanu-vervaeke/lab-platform-student
+    tag: replace-me-via-application-values
+  guacamole:
+    repository: guacamole/guacamole
+    tag: "1.5.5"
+  guacd:
+    repository: guacamole/guacd
+    tag: "1.5.5"
+
+postgres:
+  instances: 2
+  storageSize: 5Gi
+  storageClassName: longhorn
+
+api:
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  autoscaling:
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+guacd:
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  autoscaling:
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+  terminationGracePeriodSeconds: 120
+
+guacamole:
+  replicas: 2
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+    limits: { cpu: 1000m, memory: 1Gi }
+
+student:
+  memoryLimit: 512Mi
+  cpuRequest: 250m
+  cpuLimit: 500m
+
+ttl:
+  classSeconds: 7200
+  homeworkSeconds: 604800
+
+cleanup:
+  schedule: "*/1 * * * *"

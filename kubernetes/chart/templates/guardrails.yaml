@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: lab-platform-defaults
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: "1"
+        memory: 1Gi
+      defaultRequest:
+        cpu: 100m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: lab-platform-quota
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "12"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "4"
+    requests.storage: 20Gi
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: lab-students-defaults
+  namespace: {{ .Values.namespaces.students }}
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: {{ .Values.student.cpuLimit }}
+        memory: {{ .Values.student.memoryLimit }}
+      defaultRequest:
+        cpu: {{ .Values.student.cpuRequest }}
+        memory: {{ .Values.student.memoryLimit }}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: lab-students-quota
+  namespace: {{ .Values.namespaces.students }}
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 16Gi
+    pods: "40"
+    services: "40"

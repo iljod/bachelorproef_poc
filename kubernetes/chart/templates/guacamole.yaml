@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guacamole
+spec:
+  replicas: {{ .Values.guacamole.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: guacamole
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: guacamole
+        app.kubernetes.io/part-of: lab-platform
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: guacamole
+          image: "{{ .Values.image.guacamole.repository }}:{{ .Values.image.guacamole.tag }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: GUACD_HOSTNAME
+              value: guacd
+            - name: GUACD_PORT
+              value: "4822"
+            - name: POSTGRESQL_HOSTNAME
+              value: lab-platform-db-pooler
+            - name: POSTGRESQL_PORT
+              value: "5432"
+            - name: POSTGRESQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: lab-platform-db-app
+                  key: dbname
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: lab-platform-db-app
+                  key: username
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lab-platform-db-app
+                  key: password
+            # Presence of any JSON_-prefixed variable auto-enables the
+            # bundled guacamole-auth-json extension (apache/guacamole-client
+            # guacamole-docker/build.d/010-map-guacamole-extensions.sh); the
+            # extension reads "json-secret-key" via Guacamole's own
+            # enable-environment-properties fallback, so no properties file
+            # or custom image is needed.
+            - name: JSON_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lab-platform-json-secret
+                  key: json-secret-key
+          resources:
+            {{- toYaml .Values.guacamole.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /guacamole/
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /guacamole/
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guacamole
+spec:
+  # In-flight websocket tunnels live on whichever pod accepted them; pin a
+  # client to one replica so a tunnel doesn't get cut by load-balancing a
+  # reconnect onto a different pod mid-session.
+  sessionAffinity: ClientIP
+  selector:
+    app.kubernetes.io/name: guacamole
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
