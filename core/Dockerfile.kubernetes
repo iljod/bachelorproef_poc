@@ -1,0 +1,12 @@
+# Kubernetes API image (also used by the cleanup CronJob). Build context is
+# this core/ directory. Runs as an unprivileged user; it manages sandboxes
+# through the Kubernetes API via its ServiceAccount, not a host socket.
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements-base.txt requirements-kubernetes.txt ./
+RUN pip install --no-cache-dir -r requirements-kubernetes.txt
+COPY . .
+ENV LAB_PLATFORM=kubernetes
+RUN useradd --uid 1000 --create-home appuser
+USER appuser
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

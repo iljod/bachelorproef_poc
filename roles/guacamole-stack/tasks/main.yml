@@ -73,12 +73,15 @@
     mode: '0640'
   register: guac_jar
 
-- name: Copy API source
+# The whole API (shared logic + the Docker backend, selected at runtime by
+# LAB_PLATFORM) lives in core/ at the repo root, the single source of truth
+# shared with the Kubernetes deployment. Copy it in as the API build context.
+- name: Copy core API into build context
   ansible.builtin.copy:
-    src: api/
+    src: "{{ playbook_dir }}/core/"
     dest: "{{ stack_dir }}/api/"
     mode: '0640'
-  register: api_source
+  register: core_source
 
 
 - name: Template docker-compose.yml
@@ -107,8 +110,9 @@
     source: build
     build:
       path: "{{ stack_dir }}/api"
+      dockerfile: Dockerfile.docker
       pull: false
-    force_source: "{{ api_source.changed }}"
+    force_source: "{{ core_source.changed }}"
 
 - name: Build Guacamole image
   community.docker.docker_image:

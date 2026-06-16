@@ -1,0 +1,28 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: lab-platform-db
+spec:
+  instances: {{ .Values.postgres.instances }}
+  storage:
+    size: {{ .Values.postgres.storageSize }}
+    storageClass: {{ .Values.postgres.storageClassName }}
+  bootstrap:
+    initdb:
+      database: guacamoledb
+      owner: guacamole
+---
+# PgBouncer pooler so the horizontally-scaled api/guacamole/guacd Deployments
+# don't each hold a direct Postgres connection per replica. Reuses the
+# Cluster's own "app" credentials (CNPG Poolers proxy the same role through).
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: lab-platform-db-pooler
+spec:
+  cluster:
+    name: lab-platform-db
+  instances: 2
+  type: rw
+  pgbouncer:
+    poolMode: transaction

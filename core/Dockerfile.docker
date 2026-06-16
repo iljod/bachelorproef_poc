@@ -1,0 +1,10 @@
+# Docker Compose API image. Build context is this core/ directory.
+# Runs as root because it talks to the host Docker socket to manage sandbox
+# containers (the compose service uses userns-remap for isolation instead).
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements-base.txt requirements-docker.txt ./
+RUN pip install --no-cache-dir -r requirements-docker.txt
+COPY . .
+ENV LAB_PLATFORM=docker
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

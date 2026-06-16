@@ -1,0 +1,48 @@
+# The original nginx reverse proxy forwarded /api/ to the provisioning API
+# with the prefix stripped (proxy_pass with matching trailing slashes), but
+# passed /guacamole/ straight through unchanged. This Middleware reproduces
+# only the /api stripping half; it's a no-op for paths that don't start with
+# /api. Requires Traefik as the ingress controller (for the Middleware CRD
+# and the traefik.ingress.kubernetes.io/* annotations below).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: lab-platform-api-stripprefix
+spec:
+  stripPrefix:
+    prefixes:
+      - /api
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lab-platform
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.certIssuer }}
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.namespaces.platform }}-lab-platform-api-stripprefix@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: {{ .Values.hostname }}
+      http:
+        paths:
+          - path: /guacamole
+            pathType: Prefix
+            backend:
+              service:
+                name: guacamole
+                port:
+                  name: http
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: lab-platform-api
+                port:
+                  name: http
+  tls:
+    - hosts:
+        - {{ .Values.hostname }}
+      secretName: lab-platform-tls

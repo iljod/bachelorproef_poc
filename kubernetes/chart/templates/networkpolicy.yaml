@@ -1,0 +1,87 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: guacamole-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: guacamole
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.ingressNamespace }}
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lab-platform-api-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: lab-platform-api
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.ingressNamespace }}
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# Only the Guacamole webapp is allowed to open tunnels to guacd; nothing else
+# in the namespace (or outside it) needs to reach it directly.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: guacd-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: guacd
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: guacamole
+      ports:
+        - protocol: TCP
+          port: 4822
+---
+# Student sandboxes: only guacd may reach them, only on port 22. Egress is
+# restricted to DNS only — no general internet/cluster access by default.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lab-students-default
+  namespace: {{ .Values.namespaces.students }}
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.namespaces.platform }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: guacd
+      ports:
+        - protocol: TCP
+          port: 22
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
