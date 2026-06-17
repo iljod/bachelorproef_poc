@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.get("")
 def get_roster():
-    return state_db.get_roster()
+    return state_db.list_roster()
 
 
 @router.post("/class")
@@ -20,16 +20,16 @@ def add_class(req: AddClassRequest):
     name = req.class_name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="class_name cannot be empty")
-    if not state_db.create_class(name):
+    if not state_db.add_class(name):
         raise HTTPException(status_code=409, detail=f"Class '{name}' already exists")
-    return {"created": name, "roster": state_db.get_roster()}
+    return {"created": name, "roster": state_db.list_roster()}
 
 
 @router.delete("/class/{class_name}")
 def remove_class(class_name: str):
-    if not state_db.delete_class(class_name):
+    if not state_db.remove_class(class_name):
         raise HTTPException(status_code=404, detail=f"Class '{class_name}' not found")
-    return {"deleted": class_name, "roster": state_db.get_roster()}
+    return {"deleted": class_name, "roster": state_db.list_roster()}
 
 
 @router.post("/class/{class_name}/student")
@@ -100,7 +100,7 @@ async def import_roster_csv(file: UploadFile = File(...)):
             errors.append(f"Row {i+1}: student_id is empty")
             continue
 
-        state_db.create_class(class_name)
+        state_db.add_class(class_name)
         if state_db.add_student(class_name, student_id):
             added.setdefault(class_name, []).append(student_id)
         else:
@@ -111,7 +111,7 @@ async def import_roster_csv(file: UploadFile = File(...)):
         "total_added": sum(len(v) for v in added.values()),
         "skipped":     skipped,
         "errors":      errors,
-        "roster":      state_db.get_roster(),
+        "roster":      state_db.list_roster(),
     }
 
 
@@ -121,7 +121,7 @@ def export_roster_csv():
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["class_name", "student_id"])
-    for class_name, students in state_db.get_roster().items():
+    for class_name, students in state_db.list_roster().items():
         for s in students:
             writer.writerow([class_name, s])
     output.seek(0)
