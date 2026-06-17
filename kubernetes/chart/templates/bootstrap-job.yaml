@@ -3,7 +3,13 @@ kind: Job
 metadata:
   name: lab-platform-bootstrap
   annotations:
-    argocd.argoproj.io/hook: PostSync
+    # Runs during the Sync phase, not PostSync: the Deployments that consume the
+    # secrets this Job creates (lab-platform-json-secret, the lab schema) gate
+    # the app's health, so a PostSync hook would never fire (it waits for health
+    # that can't be reached without these). A Sync hook runs while those pods sit
+    # in CreateContainerConfigError; the kubelet retries them once the Secret
+    # exists. The Job itself waits for Postgres (wait_for_postgres) before acting.
+    argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
   backoffLimit: 5
