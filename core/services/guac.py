@@ -37,4 +37,19 @@ def build_token(username: str, hostname: str, ttl: int) -> str:
 
 
 def build_url(token: str) -> str:
-    return f"{PUBLIC_URL}/?data={urllib.parse.quote(token, safe='')}"
+    # Guacamole's web client runs in hashbang mode and reads its auth/login
+    # parameters from the URL fragment (everything after "#") via
+    # $location.search(); a query placed before the "#" is never seen. So the
+    # token must live in the fragment. Point straight at the connection's
+    # /client route (which also re-authenticates) so the student lands in the
+    # terminal rather than on the connection-list home page.
+    #
+    # Client identifier (Guacamole ClientIdentifier.toString): unpadded
+    # base64url of "<connection id>\0<type>\0<data source>", where type "c"
+    # means a connection and "json" is the guacamole-auth-json data source.
+    client_id = (
+        base64.urlsafe_b64encode(f"{CONNECTION_NAME}\0c\0json".encode("utf-8"))
+        .decode()
+        .rstrip("=")
+    )
+    return f"{PUBLIC_URL}/#/client/{client_id}?data={urllib.parse.quote(token, safe='')}"
