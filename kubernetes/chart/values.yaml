@@ -29,7 +29,7 @@ postgres:
   storageClassName: longhorn
 
 api:
-  replicas: 2
+  # replica count is owned by the HPA (autoscaling block below), not set here
   resources:
     requests: { cpu: 100m, memory: 256Mi }
     limits: { cpu: 500m, memory: 512Mi }
@@ -39,7 +39,7 @@ api:
     targetCPUUtilizationPercentage: 70
 
 guacd:
-  replicas: 2
+  # replica count is owned by the HPA (autoscaling block below), not set here
   resources:
     requests: { cpu: 100m, memory: 128Mi }
     limits: { cpu: 500m, memory: 256Mi }
