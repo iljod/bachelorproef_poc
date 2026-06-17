@@ -19,6 +19,12 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.guacd.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
+        # The image declares `USER guacd` (a name). The kubelet cannot resolve a
+        # name to a UID at admission, so it cannot prove the user is non-root and
+        # refuses to start the pod. Pin the numeric uid/gid the image baked in
+        # (guacd:x:1000:1000 in the image's /etc/passwd) so the check passes.
+        runAsUser: 1000
+        runAsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:

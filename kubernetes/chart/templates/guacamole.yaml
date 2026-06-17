@@ -15,6 +15,12 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        # The image declares `USER guacamole` (a name); the kubelet cannot map a
+        # name to a UID at admission and so cannot verify it is non-root. Pin the
+        # numeric uid/gid baked into the image (guacamole:x:1001:1001) so the
+        # runAsNonRoot check passes.
+        runAsUser: 1001
+        runAsGroup: 1001
         seccompProfile:
           type: RuntimeDefault
       containers:
