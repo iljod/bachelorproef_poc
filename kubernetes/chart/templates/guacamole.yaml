@@ -87,10 +87,21 @@ apiVersion: v1
 kind: Service
 metadata:
   name: guacamole
+  annotations:
+    # Guacamole keeps auth tokens (and in-flight tunnels) in per-pod memory, not
+    # a shared store, so a client must stay on the pod that minted its token.
+    # Traefik's Kubernetes Ingress load-balances across the pod endpoints
+    # directly and bypasses the ClusterIP, so the Service-level sessionAffinity
+    # below has no effect on ingress traffic. Pin the client at the Traefik
+    # layer with a sticky cookie; without it a token minted on one replica
+    # gets PERMISSION_DENIED on the ~half of requests routed to the other.
+    traefik.ingress.kubernetes.io/service.sticky.cookie: "true"
+    traefik.ingress.kubernetes.io/service.sticky.cookie.name: "lab-guac-affinity"
+    traefik.ingress.kubernetes.io/service.sticky.cookie.secure: "true"
+    traefik.ingress.kubernetes.io/service.sticky.cookie.httponly: "true"
 spec:
-  # In-flight websocket tunnels live on whichever pod accepted them; pin a
-  # client to one replica so a tunnel doesn't get cut by load-balancing a
-  # reconnect onto a different pod mid-session.
+  # Kept as a fallback for any non-Traefik (direct ClusterIP) access; ingress
+  # stickiness is handled by the Traefik cookie annotations above.
   sessionAffinity: ClientIP
   selector:
     app.kubernetes.io/name: guacamole
