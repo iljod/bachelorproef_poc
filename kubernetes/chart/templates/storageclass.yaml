@@ -1,0 +1,27 @@
+# Storage contract for the platform's data, owned by this chart instead of
+# relying on whatever the cluster's default StorageClass happens to be.
+#
+# reclaimPolicy: Delete (not Retain) on purpose. The database is bootstrapped
+# fresh on every deploy and holds no data we need to keep across a teardown.
+# With Retain, deleting the app leaves orphaned Released PVs whose Longhorn
+# replicas keep reserving disk on the small worker nodes; after enough redeploys
+# a new replica can no longer schedule ("insufficient storage") and the DB never
+# comes up. Delete lets a teardown reclaim its own space, so redeploys stay
+# repeatable. reclaimPolicy is immutable once set, hence a dedicated class here
+# rather than editing the cluster default.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.postgres.storageClassName }}
+  annotations:
+    # Create the class before the CNPG Cluster so its PVCs bind on first try.
+    argocd.argoproj.io/sync-wave: "-5"
+provisioner: driver.longhorn.io
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "{{ .Values.postgres.numberOfReplicas }}"
+  staleReplicaTimeout: "30"
+  fsType: ext4
+  dataLocality: disabled
