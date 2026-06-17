@@ -26,7 +26,11 @@ image:
 postgres:
   instances: 2
   storageSize: 5Gi
-  storageClassName: longhorn
+  # Chart-owned StorageClass (see templates/storageclass.yaml): Longhorn with
+  # reclaimPolicy Delete, so a teardown reclaims its own disk. numberOfReplicas
+  # is Longhorn-level replication per volume (on top of CNPG's own HA).
+  storageClassName: lab-platform-longhorn
+  numberOfReplicas: 2
 
 api:
   # replica count is owned by the HPA (autoscaling block below), not set here
