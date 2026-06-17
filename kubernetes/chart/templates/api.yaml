@@ -3,7 +3,10 @@ kind: Deployment
 metadata:
   name: lab-platform-api
 spec:
-  replicas: {{ .Values.api.replicas }}
+  # No replicas here on purpose: the HorizontalPodAutoscaler below owns the
+  # replica count. Setting it would make Argo CD (selfHeal) keep resetting it to
+  # this value and fight the HPA. On first create the Deployment starts at 1 and
+  # the HPA immediately scales it to minReplicas.
   selector:
     matchLabels:
       app.kubernetes.io/name: lab-platform-api
