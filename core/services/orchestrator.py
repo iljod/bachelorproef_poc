@@ -90,7 +90,16 @@ if PLATFORM == "kubernetes":
                             allow_privilege_escalation=False,
                             capabilities=client.V1Capabilities(
                                 drop=["ALL"],
-                                add=["SETUID", "SETGID", "CHOWN", "NET_BIND_SERVICE"],
+                                # Same minimal set the Docker backend grants. SYS_CHROOT
+                                # is required: sshd's privilege-separation child chroots
+                                # into /run/sshd during preauth, and without the cap that
+                                # chroot fails, which clients (incl. guacd) see only as
+                                # "SSH handshake failed". AUDIT_WRITE/FOWNER let sshd log
+                                # logins and fix up file ownership as usual.
+                                add=[
+                                    "SETUID", "SETGID", "CHOWN", "SYS_CHROOT",
+                                    "NET_BIND_SERVICE", "AUDIT_WRITE", "FOWNER",
+                                ],
                             ),
                             seccomp_profile=client.V1SeccompProfile(type="RuntimeDefault"),
                         ),
