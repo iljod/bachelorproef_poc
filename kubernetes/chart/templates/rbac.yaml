@@ -20,6 +20,11 @@ rules:
   - apiGroups: [""]
     resources: ["pods", "services"]
     verbs: ["get", "list", "create", "delete"]
+  # get_container_status() reads the pod status subresource, which RBAC treats
+  # as a separate resource from "pods"; read-only, used for the status poll.
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
