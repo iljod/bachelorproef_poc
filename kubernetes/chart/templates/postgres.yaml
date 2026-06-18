@@ -4,6 +4,12 @@ metadata:
   name: lab-platform-db
 spec:
   instances: {{ .Values.postgres.instances }}
+  # Spread the instances across worker nodes so losing one worker takes down at
+  # most one Postgres instance and CNPG can fail over to the other.
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: required
   storage:
     size: {{ .Values.postgres.storageSize }}
     storageClass: {{ .Values.postgres.storageClassName }}
